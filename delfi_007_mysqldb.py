@@ -185,7 +185,7 @@ def init_database():
         "  `article_title` varchar(255) NOT NULL,"
         "  `article_url` varchar(255) NOT NULL,"
         "  PRIMARY KEY (`article_no`)"
-        ") ENGINE=InnoDB")
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
 
     TABLES['delfi_topnews'] = (
         "CREATE TABLE IF NOT EXISTS `delfi_topnews` ("
@@ -197,7 +197,7 @@ def init_database():
         "  `article_url` varchar(255) NOT NULL,"
         "  `creation_date` varchar(255) NOT NULL,"
         "  PRIMARY KEY (`article_no`)"
-        ") ENGINE=InnoDB")
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
 
     TABLES['delfi_mostreadnews'] = (
         "CREATE TABLE IF NOT EXISTS `delfi_mostreadnews` ("
@@ -209,7 +209,7 @@ def init_database():
         "  `article_url` varchar(255) NOT NULL,"
         "  `creation_date` varchar(255) NOT NULL,"
         "  PRIMARY KEY (`article_no`)"
-        ") ENGINE=InnoDB")
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
 
     TABLES['pm_topnews'] = (
         "CREATE TABLE IF NOT EXISTS `pm_topnews` ("
@@ -221,7 +221,7 @@ def init_database():
         "  `article_url` varchar(255) NOT NULL,"
         "  `creation_date` varchar(255) NOT NULL,"
         "  PRIMARY KEY (`article_no`)"
-        ") ENGINE=InnoDB")
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
 
     cnx = mdb.connect(host=SQL_HOST, user=SQL_USER, password=SQL_PW, use_unicode=True, charset="utf8")
 
@@ -321,7 +321,7 @@ def insert_to_pm_topnews(entry):
 
     add_article = ("INSERT INTO pm_topnews "
                    "(article_rank, publish_date, article_category, article_title, article_url, creation_date) "
-                   "VALUES (%s, %s, %s, %s, %s)")
+                   "VALUES (%s, %s, %s, %s, %s, %s)")
 
     data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
 
@@ -404,7 +404,7 @@ def topnews():
         publish_date = i['datePublished']
         article_title = i['editorsChoice']['headline']
         article_url = 'http://www.postimees.ee/' + str(i['id'])
-        article_category = i['sectionBreadcrumb'][1]['domain']
+        article_category = i['sectionBreadcrumb'][0]['domain']
         creation_date = current_time
 
         entry = [article_rank, article_url, publish_date, article_category, article_title, creation_date]
