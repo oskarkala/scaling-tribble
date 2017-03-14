@@ -228,7 +228,7 @@ def init_database():
     with cnx:
         cursor = cnx.cursor()
         cursor.execute(
-            "CREATE DATABASE IF NOT EXISTS {} DEFAULT CHARACTER SET 'utf8'".format(DB_NAME))
+            "CREATE DATABASE IF NOT EXISTS {} DEFAULT CHARACTER SET 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'".format(DB_NAME))
         cursor.execute(
             "USE {}".format(DB_NAME)
         )
@@ -251,6 +251,10 @@ def insert_to_delfi_rss(entry):
                    "VALUES (%s, %s, %s, %s)")
 
     data_article = (article_date, article_category, article_title, article_url)
+
+    print("delfi_rss: ")
+    print("add_article: ", add_article)
+    print("data_article: ", data_article)
 
     cursor.execute(add_article, data_article)
 
@@ -277,6 +281,10 @@ def insert_to_delfi_topnews(entry):
 
     data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
 
+    print("delfi_topnews: ")
+    print("add_article: ", add_article)
+    print("data_article: ", data_article)
+
     cursor.execute(add_article, data_article)
     cnx.commit()
 
@@ -301,6 +309,10 @@ def insert_to_delfi_mostreadnews(entry):
 
     data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
 
+    print("delfi_mostreadnews: ")
+    print("add_article: ", add_article)
+    print("data_article: ", data_article)
+
     cursor.execute(add_article, data_article)
     cnx.commit()
 
@@ -324,6 +336,10 @@ def insert_to_pm_topnews(entry):
                    "VALUES (%s, %s, %s, %s, %s, %s)")
 
     data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
+
+    print("pm_topnews: ")
+    print("add_article: ", add_article)
+    print("data_article: ", data_article)
 
     cursor.execute(add_article, data_article)
     cnx.commit()
@@ -350,6 +366,7 @@ def insert_to_pm_topnews(entry):
 # uses beautifulsoup to parse delfi.ee HTML data to get the urls of top frontpage
 # and currently most read news
 def topnews():
+    print("start topnews()")
     useragent_header ={
         'User-Agent':  ua.random
     }
@@ -431,6 +448,7 @@ def match_articles(article_url):
 
 # threaded method to insert latest rss items
 def add_rss():
+    print("start add_rss()")
     delfi_rss_array = []
     for i in delfi_rss_map.keys():
         feed = feedparser.parse(delfi_rss_map[i])
@@ -512,5 +530,5 @@ topnews()
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(APP_PORT))
-    #app.run()
+    #app.run(host='0.0.0.0', port=int(APP_PORT))
+    app.run()
