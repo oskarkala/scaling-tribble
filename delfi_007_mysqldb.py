@@ -37,7 +37,7 @@ SQL_DB = 'delfi_db'
 if 'SQL_DB' in os.environ:
     SQL_DB = os.environ['SQL_DB']
 
-rss_timer = 1800
+rss_timer = 890
 topnews_timer = 900
 
 pm_topnews_url = 'http://services.postimees.ee/rest/v1/sections/81/editorsChoice/articles'
@@ -48,10 +48,17 @@ delfi_rss_map = {
     'delfi_eesti': delfi_rss_url + 'delfieesti',
     'delfi_maailm': delfi_rss_url + 'delfimaailm',
     'delfi_majandus': delfi_rss_url + 'delfimajandus',
-    'delfi_110-112': delfi_rss_url + 'delfi110-112',
     'delfi_sport': delfi_rss_url + 'delfisport',
     'forte_uudised': delfi_rss_url + 'forteuudised',
-    'publik_uudised': delfi_rss_url + 'publikuudised'
+    'publik_uudised': delfi_rss_url + 'publikuudised',
+    'rusdelfinews': delfi_rss_url + 'rusdelfinews',
+    'rusdelfipolitics': delfi_rss_url + 'rusdelfipolitics',
+    'rusdelfisport': delfi_rss_url + 'rusdelfisport',
+    'rusdelficulturelife': delfi_rss_url + 'rusdelficulturelife',
+    'rusdelfiabroad': delfi_rss_url + 'rusdelfiabroad',
+    'rusdelfieconomy': delfi_rss_url + 'rusdelfieconomy',
+    'rusdelfidaily': delfi_rss_url + 'rusdelfidaily'
+
 }
 
 
@@ -452,9 +459,13 @@ def add_rss():
     delfi_rss_array = []
     for i in delfi_rss_map.keys():
         feed = feedparser.parse(delfi_rss_map[i])
+        print(i)
         for y, item in enumerate(feed['items']):
             date = parse_date(item['published'])
-            entry = [date, i, item['title'], item['feedburner_origlink']]
+            if i == 'rusdelfiabroad':
+                entry = [date, i, item['title'], item['link']]
+            else:
+                entry = [date, i, item['title'], item['feedburner_origlink']]
             delfi_rss_array.append(entry)
 
     delfi_rss_array = bubble_sort(delfi_rss_array)
