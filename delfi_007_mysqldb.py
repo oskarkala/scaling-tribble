@@ -39,8 +39,10 @@ if 'SQL_DB' in os.environ:
 
 rss_timer = 890
 topnews_timer = 900
+rus_topnews_timer = 900
 
-pm_topnews_url = 'http://services.postimees.ee/rest/v1/sections/81/editorsChoice/articles'
+pm_editorschoice_url = 'http://services.postimees.ee/rest/v1/sections/81/editorsChoice/articles'
+pm_rss_url = 'http://feeds2.feedburner.com/postimees.ee/rss'
 
 delfi_rss_url = 'http://feeds2.feedburner.com/'
 delfi_rss_map = {
@@ -86,16 +88,44 @@ def query_rss_table():
         return True
 
 
-# checks the rss table for before inserting new data
-def check_for_dupes(article_url, article_date, article_category):
+def query_pm_rss_table():
     cnx = connect_to_sql()
     cursor = cnx.cursor()
 
-    select_string = "SELECT (1) FROM delfi_rss WHERE article_url = %(article_url)s AND " \
-                    "article_date = %(article_date)s AND article_category = %(article_category)s"
-    cursor.execute(select_string, {'article_url': article_url,
-                                   'article_date': article_date,
-                                   'article_category': article_category})
+    select_string = "SELECT (1) FROM pm_rss"
+    cursor.execute(select_string)
+    rows = cursor.fetchone()
+
+    if rows is None:
+        return False
+    elif 1 in rows:
+        return True
+
+
+# checks the rss table for before inserting new data
+def check_for_dupes(article_url):
+    cnx = connect_to_sql()
+    cursor = cnx.cursor()
+
+    select_string = "SELECT (1) FROM delfi_rss WHERE article_url = %(article_url)s"
+
+    cursor.execute(select_string, {'article_url': article_url})
+
+    rows = cursor.fetchone()
+    if rows is None:
+        return False
+    elif 1 in rows:
+        return True
+
+
+# checks the rss table for before inserting new data
+def check_for_pm_dupes(article_url):
+    cnx = connect_to_sql()
+    cursor = cnx.cursor()
+
+    select_string = "SELECT (1) FROM pm_rss WHERE article_url = %(article_url)s"
+
+    cursor.execute(select_string, {'article_url': article_url})
 
     rows = cursor.fetchone()
     if rows is None:
@@ -194,8 +224,8 @@ def init_database():
         "  PRIMARY KEY (`article_no`)"
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
 
-    TABLES['delfi_topnews'] = (
-        "CREATE TABLE IF NOT EXISTS `delfi_topnews` ("
+    TABLES['delfi_editorschoice'] = (
+        "CREATE TABLE IF NOT EXISTS `delfi_editorschoice` ("
         "  `article_no` int(11) NOT NULL AUTO_INCREMENT,"
         "  `article_rank` int(11) NOT NULL,"
         "  `publish_date` varchar(255) NOT NULL,"
@@ -206,8 +236,8 @@ def init_database():
         "  PRIMARY KEY (`article_no`)"
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
 
-    TABLES['delfi_mostreadnews'] = (
-        "CREATE TABLE IF NOT EXISTS `delfi_mostreadnews` ("
+    TABLES['delfi_popular'] = (
+        "CREATE TABLE IF NOT EXISTS `delfi_popular` ("
         "  `article_no` int(11) NOT NULL AUTO_INCREMENT,"
         "  `article_rank` int(11) NOT NULL,"
         "  `publish_date` varchar(255) NOT NULL,"
@@ -218,8 +248,41 @@ def init_database():
         "  PRIMARY KEY (`article_no`)"
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
 
-    TABLES['pm_topnews'] = (
-        "CREATE TABLE IF NOT EXISTS `pm_topnews` ("
+    TABLES['delfi_rus_editorschoice'] = (
+        "CREATE TABLE IF NOT EXISTS `delfi_rus_editorschoice` ("
+        "  `article_no` int(11) NOT NULL AUTO_INCREMENT,"
+        "  `article_rank` int(11) NOT NULL,"
+        "  `publish_date` varchar(255) NOT NULL,"
+        "  `article_category` varchar(255) NOT NULL,"
+        "  `article_title` varchar(255) NOT NULL,"
+        "  `article_url` varchar(255) NOT NULL,"
+        "  `creation_date` varchar(255) NOT NULL,"
+        "  PRIMARY KEY (`article_no`)"
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
+
+    TABLES['delfi_rus_popular'] = (
+        "CREATE TABLE IF NOT EXISTS `delfi_rus_popular` ("
+        "  `article_no` int(11) NOT NULL AUTO_INCREMENT,"
+        "  `article_rank` int(11) NOT NULL,"
+        "  `publish_date` varchar(255) NOT NULL,"
+        "  `article_category` varchar(255) NOT NULL,"
+        "  `article_title` varchar(255) NOT NULL,"
+        "  `article_url` varchar(255) NOT NULL,"
+        "  `creation_date` varchar(255) NOT NULL,"
+        "  PRIMARY KEY (`article_no`)"
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
+
+    TABLES['pm_rss'] = (
+        "CREATE TABLE IF NOT EXISTS `pm_rss` ("
+        "  `article_no` int(11) NOT NULL AUTO_INCREMENT,"
+        "  `article_date` varchar(255) NOT NULL,"
+        "  `article_title` varchar(255) NOT NULL,"
+        "  `article_url` varchar(255) NOT NULL,"
+        "  PRIMARY KEY (`article_no`)"
+        ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
+
+    TABLES['pm_editorschoice'] = (
+        "CREATE TABLE IF NOT EXISTS `pm_editorschoice` ("
         "  `article_no` int(11) NOT NULL AUTO_INCREMENT,"
         "  `article_rank` int(11) NOT NULL,"
         "  `publish_date` varchar(255) NOT NULL,"
@@ -271,7 +334,33 @@ def insert_to_delfi_rss(entry):
     cnx.close()
 
 
-def insert_to_delfi_topnews(entry):
+def insert_to_pm_rss(entry):
+    article_date = entry[0]
+    article_title = entry[1]
+    article_url = entry[2]
+
+    cnx = connect_to_sql()
+    cursor = cnx.cursor()
+
+    add_article = ("INSERT INTO pm_rss "
+                   "(article_date, article_title, article_url) "
+                   "VALUES (%s, %s, %s)")
+
+    data_article = (article_date, article_title, article_url)
+
+    print("delfi_rss: ")
+    print("add_article: ", add_article)
+    print("data_article: ", data_article)
+
+    cursor.execute(add_article, data_article)
+
+    cnx.commit()
+
+    cursor.close()
+    cnx.close()
+
+
+def insert_to_delfi_editorschoice(entry):
     article_rank = entry[0]
     article_url = entry[1]
     publish_date = entry[2]
@@ -282,13 +371,13 @@ def insert_to_delfi_topnews(entry):
     cnx = connect_to_sql()
     cursor = cnx.cursor()
 
-    add_article = ("INSERT INTO delfi_topnews "
+    add_article = ("INSERT INTO delfi_editorschoice "
                    "(article_rank, publish_date, article_category, article_title, article_url, creation_date) "
                    "VALUES (%s, %s, %s, %s, %s, %s)")
 
     data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
 
-    print("delfi_topnews: ")
+    print("delfi_editorschoice: ")
     print("add_article: ", add_article)
     print("data_article: ", data_article)
 
@@ -299,7 +388,7 @@ def insert_to_delfi_topnews(entry):
     cnx.close()
 
 
-def insert_to_delfi_mostreadnews(entry):
+def insert_to_delfi_popular(entry):
     article_rank = entry[0]
     article_url = entry[1]
     publish_date = entry[2]
@@ -310,13 +399,13 @@ def insert_to_delfi_mostreadnews(entry):
     cnx = connect_to_sql()
     cursor = cnx.cursor()
 
-    add_article = ("INSERT INTO delfi_mostreadnews "
+    add_article = ("INSERT INTO delfi_popular "
                    "(article_rank, publish_date, article_category, article_title, article_url, creation_date) "
                    "VALUES (%s, %s, %s, %s, %s, %s)")
 
     data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
 
-    print("delfi_mostreadnews: ")
+    print("delfi_popular: ")
     print("add_article: ", add_article)
     print("data_article: ", data_article)
 
@@ -327,7 +416,7 @@ def insert_to_delfi_mostreadnews(entry):
     cnx.close()
 
 
-def insert_to_pm_topnews(entry):
+def insert_to_delfi_rus_editorschoice(entry):
     article_rank = entry[0]
     article_url = entry[1]
     publish_date = entry[2]
@@ -338,13 +427,13 @@ def insert_to_pm_topnews(entry):
     cnx = connect_to_sql()
     cursor = cnx.cursor()
 
-    add_article = ("INSERT INTO pm_topnews "
+    add_article = ("INSERT INTO delfi_rus_editorschoice "
                    "(article_rank, publish_date, article_category, article_title, article_url, creation_date) "
                    "VALUES (%s, %s, %s, %s, %s, %s)")
 
     data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
 
-    print("pm_topnews: ")
+    print("delfi_editorschoice: ")
     print("add_article: ", add_article)
     print("data_article: ", data_article)
 
@@ -354,20 +443,61 @@ def insert_to_pm_topnews(entry):
     cursor.close()
     cnx.close()
 
-#
-# def pm_topews():
-#     pm_data = requests.get(pm_topnews_url).text
-#     pm_data = json.loads(pm_data)
-#     for x, i in enumerate(pm_data):
-#         article_rank = x + 1
-#         publish_date = i['datePublished']
-#         article_title = i['editorsChoice']['headline']
-#         article_url = 'http://www.postimees.ee/' + str(i['id'])
-#         article_category = i['sectionBreadcrumb'][1]['domain']
-#
-#         entry = [article_rank, article_url, publish_date, article_category, article_title]
-#         insert_to_delfi_topnews(entry=entry)
-#         print(entry)
+
+def insert_to_delfi_rus_popular(entry):
+    article_rank = entry[0]
+    article_url = entry[1]
+    publish_date = entry[2]
+    article_category = entry[3]
+    article_title = entry[4]
+    creation_date = entry[5]
+
+    cnx = connect_to_sql()
+    cursor = cnx.cursor()
+
+    add_article = ("INSERT INTO delfi_rus_popular "
+                   "(article_rank, publish_date, article_category, article_title, article_url, creation_date) "
+                   "VALUES (%s, %s, %s, %s, %s, %s)")
+
+    data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
+
+    print("delfi_popular: ")
+    print("add_article: ", add_article)
+    print("data_article: ", data_article)
+
+    cursor.execute(add_article, data_article)
+    cnx.commit()
+
+    cursor.close()
+    cnx.close()
+
+
+def insert_to_pm_editorschoice(entry):
+    article_rank = entry[0]
+    article_url = entry[1]
+    publish_date = entry[2]
+    article_category = entry[3]
+    article_title = entry[4]
+    creation_date = entry[5]
+
+    cnx = connect_to_sql()
+    cursor = cnx.cursor()
+
+    add_article = ("INSERT INTO pm_editorschoice "
+                   "(article_rank, publish_date, article_category, article_title, article_url, creation_date) "
+                   "VALUES (%s, %s, %s, %s, %s, %s)")
+
+    data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
+
+    print("pm_editorschoice: ")
+    print("add_article: ", add_article)
+    print("data_article: ", data_article)
+
+    cursor.execute(add_article, data_article)
+    cnx.commit()
+
+    cursor.close()
+    cnx.close()
 
 
 # uses beautifulsoup to parse delfi.ee HTML data to get the urls of top frontpage
@@ -381,13 +511,13 @@ def topnews():
     data = requests.get("http://www.delfi.ee", useragent_header).text
     soup = BeautifulSoup(data, 'html.parser')
 
-    top_news = soup.section
-    top_news_array = []
+    editorschoice = soup.section
+    editorschoice_array = []
 
     related_news_array = []
-    mostread_news_array = []
+    popular_news_array = []
 
-    related_news = top_news.find_all('h5')
+    related_news = editorschoice.find_all('h5')
 
     for i in related_news:
         for link in i.find_all('a'):
@@ -396,29 +526,29 @@ def topnews():
             else:
                 related_news_array.append(link.get('href'))
 
-    for link in top_news.find_all('a'):
+    for link in editorschoice.find_all('a'):
         if link.get('href').endswith('reg=1') \
                 or link.get('href').endswith('.jpg') \
                 or link.get('href') in related_news_array:
             pass
         else:
-            top_news_array.append(link.get('href'))
+            editorschoice_array.append(link.get('href'))
 
-    mostread_news = soup.find(id="mostread-news")
+    popular_news = soup.find(id="mostread-news")
 
-    for link in mostread_news.find_all('a'):
+    for link in popular_news.find_all('a'):
         if link.get('href').endswith('reg=1'):
             pass
         else:
-            mostread_news_array.append(link.get('href'))
+            popular_news_array.append(link.get('href'))
 
-    mostread_news_array = mostread_news_array
-    top_news_array = remove_duplicates(top_news_array)
+    popular_news_array = popular_news_array
+    editorschoice_array = remove_duplicates(editorschoice_array)
 
-    create_top_list(mostread_news_array, 'mostread')
-    create_top_list(top_news_array, 'topnews')
+    create_top_list(popular_news_array, 'popular')
+    create_top_list(editorschoice_array, 'editorschoice')
 
-    pm_data = requests.get(pm_topnews_url).text
+    pm_data = requests.get(pm_editorschoice_url).text
     pm_data = json.loads(pm_data)
 
     current_time = str(datetime.now())
@@ -432,10 +562,58 @@ def topnews():
         creation_date = current_time
 
         entry = [article_rank, article_url, publish_date, article_category, article_title, creation_date]
-        insert_to_pm_topnews(entry=entry)
-        #print(entry)
+        insert_to_pm_editorschoice(entry=entry)
 
     threading.Timer(topnews_timer, topnews).start()
+
+
+def rus_topnews():
+    print("start rus_topnews()")
+    useragent_header ={
+        'User-Agent':  ua.random
+    }
+
+    data = requests.get("http://rus.delfi.ee", useragent_header).text
+    soup = BeautifulSoup(data, 'html.parser')
+
+    editorschoice = soup.section
+    editorschoice_array = []
+
+    related_news_array = []
+    popular_news_array = []
+
+    related_news = editorschoice.find_all('h5')
+
+    for i in related_news:
+        for link in i.find_all('a'):
+            if link.get('href').endswith('reg=1'):
+                pass
+            else:
+                related_news_array.append(link.get('href'))
+
+    for link in editorschoice.find_all('a'):
+        if link.get('href').endswith('reg=1') \
+                or link.get('href').endswith('.jpg') \
+                or link.get('href') in related_news_array:
+            pass
+        else:
+            editorschoice_array.append(link.get('href'))
+
+    popular_news = soup.find(id="mostread-news")
+
+    for link in popular_news.find_all('a'):
+        if link.get('href').endswith('reg=1'):
+            pass
+        else:
+            popular_news_array.append(link.get('href'))
+
+    popular_news_array = popular_news_array
+    editorschoice_array = remove_duplicates(editorschoice_array)
+
+    create_top_list(popular_news_array, 'rus_popular')
+    create_top_list(editorschoice_array, 'rus_editorschoice')
+
+    threading.Timer(rus_topnews_timer, rus_topnews).start()
 
 
 # check the rss table for data on the article URL
@@ -451,6 +629,26 @@ def match_articles(article_url):
         return "N/A"
     else:
         return rows
+
+
+# populates the topnews & popular tables
+def create_top_list(array, table):
+    current_time = str(datetime.now())
+    for i, item in enumerate(array):
+        from_db_item = match_articles(item)
+        if from_db_item == "N/A":
+            entry = [i + 1, item, from_db_item, from_db_item, from_db_item, current_time]
+        else:
+            entry = [i + 1, item, from_db_item[1], from_db_item[2], from_db_item[3], current_time]
+
+        if table == 'editorschoice':
+            insert_to_delfi_editorschoice(entry=entry)
+        elif table == 'popular':
+            insert_to_delfi_popular(entry=entry)
+        elif table == 'rus_editorschoice':
+            insert_to_delfi_rus_editorschoice(entry=entry)
+        elif table == 'rus_popular':
+            insert_to_delfi_rus_popular(entry=entry)
 
 
 # threaded method to insert latest rss items
@@ -470,26 +668,10 @@ def add_rss():
 
     delfi_rss_array = bubble_sort(delfi_rss_array)
     for i, item in enumerate(delfi_rss_array):
-        if check_for_dupes(item[3], item[0], item[1]) is False:
+        if check_for_dupes(item[3]) is False:
             insert_to_delfi_rss(item)
 
     threading.Timer(rss_timer, add_rss).start()
-
-
-# populates the topnews & mostread tables
-def create_top_list(array, table):
-    current_time = str(datetime.now())
-    for i, item in enumerate(array):
-        from_db_item = match_articles(item)
-        if from_db_item == "N/A":
-            entry = [i + 1, item, from_db_item, from_db_item, from_db_item, current_time]
-        else:
-            entry = [i + 1, item, from_db_item[1], from_db_item[2], from_db_item[3], current_time]
-
-        if table == 'topnews':
-            insert_to_delfi_topnews(entry=entry)
-        elif table == 'mostread':
-            insert_to_delfi_mostreadnews(entry=entry)
 
 
 # run once to populate the rss table
@@ -508,9 +690,45 @@ def fill_rss_table():
             insert_to_delfi_rss(item)
 
 
+# threaded method to insert latest rss items
+def add_pm_rss():
+    print("start add_pm_rss()")
+    pm_rss_array = []
+    feed = feedparser.parse(pm_rss_url)
+    for i, item in enumerate(feed['items']):
+        date = parse_date(item['published'])
+        entry = [date, item['title'], item['link']]
+        pm_rss_array.append(entry)
+
+    delfi_rss_array = bubble_sort(pm_rss_array)
+    for i, item in enumerate(delfi_rss_array):
+        if check_for_pm_dupes(item[2]) is False:
+            insert_to_pm_rss(item)
+
+    threading.Timer(rss_timer, add_pm_rss).start()
+
+
+# run once to populate the rss table
+def fill_pm_rss_table():
+    if query_pm_rss_table() is None:
+        pm_rss_array = []
+        feed = feedparser.parse(pm_rss_url)
+        for i, item in enumerate(feed['items']):
+            date = parse_date(item['published'])
+            entry = [date, item['title'], item['link']]
+            pm_rss_array.append(entry)
+
+        pm_rss_array = bubble_sort(pm_rss_array)
+        for i, item in enumerate(pm_rss_array):
+            insert_to_pm_rss(item)
+
+
 @bp.route('/<slug>')
 def get_rss_data(slug):
-    if slug == 'delfi_rss' or slug == 'delfi_topnews' or slug == 'delfi_mostreadnews' or slug == 'pm_topnews':
+    if slug == 'delfi_rss' or slug == 'delfi_editorschoice' \
+            or slug == 'delfi_popular' or slug == 'pm_topnews'\
+            or slug == 'delfi_rus_popular' or slug == 'delfi_rus_editorschocie':
+
         cnx = connect_to_sql()
         cursor = cnx.cursor()
 
@@ -537,7 +755,9 @@ CORS(app, resources=r'/*')
 init_database()
 fill_rss_table()
 add_rss()
+add_pm_rss()
 topnews()
+rus_topnews()
 
 
 if __name__ == '__main__':
