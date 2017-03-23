@@ -2,11 +2,12 @@ import json
 import threading
 import requests
 import feedparser
+import datetime
 import os
 import MySQLdb as mdb
 from flask import Flask, abort, Blueprint
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime as dt
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
@@ -191,21 +192,32 @@ def month_handling(month):
 
 
 # straight-forward
-def parse_date(date):
-    date_data = date.split(sep=',')
-    date_data = date_data[1].split(sep=' ')
+def parse_date(date, ekspress=None):
+    if ekspress is None:
+        date_data = date.split(sep=',')
+        date_data = date_data[1].split(sep=' ')
 
-    day = day_handling(date_data[1])
-    month = month_handling(date_data[2])
-    year = int(date_data[3])
+        day = day_handling(date_data[1])
+        month = month_handling(date_data[2])
+        year = int(date_data[3])
 
-    timestamp = date_data[4]
+        timestamp = date_data[4]
 
-    hour = int((timestamp.split(sep=":"))[0])
-    minute = int((timestamp.split(sep=":"))[1])
-    second = int((timestamp.split(sep=":"))[2])
+        hour = int((timestamp.split(sep=":"))[0])
+        minute = int((timestamp.split(sep=":"))[1])
+        second = int((timestamp.split(sep=":"))[2])
 
-    format_date = datetime(year=year, day=day, month=month, hour=hour, minute=minute, second=second)
+    elif ekspress is True:
+        date_data = date.split(sep=' ')
+
+        year = int(date_data[0].split(sep='-')[0])
+        month = int(date_data[0].split(sep='-')[1])
+        day = int(date_data[0].split(sep='-')[2])
+        hour = int(date_data[1].split(sep=':')[0])
+        minute = int(date_data[1].split(sep=':')[1])
+        second = int(date_data[1].split(sep=':')[2])
+
+    format_date = dt(year=year, day=day, month=month, hour=hour, minute=minute, second=second)
     return format_date
 
 
@@ -551,7 +563,7 @@ def topnews():
     pm_data = requests.get(pm_editorschoice_url).text
     pm_data = json.loads(pm_data)
 
-    current_time = str(datetime.now())
+    current_time = str(dt.now())
 
     for x, i in enumerate(pm_data):
         article_rank = x + 1
@@ -633,7 +645,7 @@ def match_articles(article_url):
 
 # populates the topnews & popular tables
 def create_top_list(array, table):
-    current_time = str(datetime.now())
+    current_time = str(dt.now())
     for i, item in enumerate(array):
         from_db_item = match_articles(item)
         if from_db_item == "N/A":
@@ -654,10 +666,32 @@ def create_top_list(array, table):
 # threaded method to insert latest rss items
 def add_rss():
     print("start add_rss()")
+
+    data = requests.get("http://ekspress.delfi.ee").text
+    soup = BeautifulSoup(data, 'html.parser')
+
     delfi_rss_array = []
+    ekspress_array = []
+
+    for link in soup.find_all('a'):
+        article_url = link.get('href')
+        if check_for_dupes(article_url) is False:
+            if 'ekspress.delfi' in article_url and 'linear=1' not in article_url:
+                ekspress_array.append(article_url)
+
+                article_data = requests.get(article_url).text
+                article_soup = BeautifulSoup(article_data, 'html.parser')
+
+                title = article_soup.find("meta", property="og:title")
+                publish_date = article_soup.find("meta", property="article:published_time")
+                publish_date = datetime.datetime.fromtimestamp(int(publish_date["content"])).strftime(
+                    '%Y-%m-%d %H:%M:%S')
+                date = parse_date(str(publish_date), ekspress=True)
+                entry = ([date, 'ekspress', title['content'], article_url])
+                delfi_rss_array.append(entry)
+
     for i in delfi_rss_map.keys():
         feed = feedparser.parse(delfi_rss_map[i])
-        print(i)
         for y, item in enumerate(feed['items']):
             date = parse_date(item['published'])
             if i == 'rusdelfiabroad':
@@ -665,7 +699,6 @@ def add_rss():
             else:
                 entry = [date, i, item['title'], item['feedburner_origlink']]
             delfi_rss_array.append(entry)
-
     delfi_rss_array = bubble_sort(delfi_rss_array)
     for i, item in enumerate(delfi_rss_array):
         if check_for_dupes(item[3]) is False:
@@ -677,7 +710,9 @@ def add_rss():
 # run once to populate the rss table
 def fill_rss_table():
     if query_rss_table() is None:
+
         delfi_rss_array = []
+
         for i in delfi_rss_map.keys():
             feed = feedparser.parse(delfi_rss_map[i])
             for y, item in enumerate(feed['items']):
@@ -726,8 +761,9 @@ def fill_pm_rss_table():
 @bp.route('/<slug>')
 def get_rss_data(slug):
     if slug == 'delfi_rss' or slug == 'delfi_editorschoice' \
-            or slug == 'delfi_popular' or slug == 'pm_topnews'\
-            or slug == 'delfi_rus_popular' or slug == 'delfi_rus_editorschocie':
+            or slug == 'delfi_popular' or slug == 'pm_editorschoice'\
+            or slug == 'delfi_rus_popular' or slug == 'delfi_rus_editorschocie'\
+            or slug == 'pm_rss':
 
         cnx = connect_to_sql()
         cursor = cnx.cursor()
