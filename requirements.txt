@@ -5,3 +5,4 @@ feedparser
 mysqlclient
 requests
 fake-useragent
+pytz

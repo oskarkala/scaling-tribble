@@ -1,5 +1,6 @@
 import json
 import threading
+import pytz
 import requests
 import feedparser
 import datetime
@@ -229,8 +230,9 @@ def init_database():
     TABLES['delfi_rss'] = (
         "CREATE TABLE IF NOT EXISTS `delfi_rss` ("
         "  `article_no` int(11) NOT NULL AUTO_INCREMENT,"
-        "  `article_date` varchar(255) NOT NULL,"
+        "  `publish_date` DATETIME NOT NULL,"
         "  `article_category` varchar(255) NOT NULL,"
+        "  `article_id` int(11) NOT NULL,"
         "  `article_title` varchar(255) NOT NULL,"
         "  `article_url` varchar(255) NOT NULL,"
         "  PRIMARY KEY (`article_no`)"
@@ -242,9 +244,10 @@ def init_database():
         "  `article_rank` int(11) NOT NULL,"
         "  `publish_date` varchar(255) NOT NULL,"
         "  `article_category` varchar(255) NOT NULL,"
+        "  `article_id` int(11) NOT NULL,"
         "  `article_title` varchar(255) NOT NULL,"
         "  `article_url` varchar(255) NOT NULL,"
-        "  `creation_date` varchar(255) NOT NULL,"
+        "  `list_gen_date` DATETIME NOT NULL,"
         "  PRIMARY KEY (`article_no`)"
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
 
@@ -254,9 +257,10 @@ def init_database():
         "  `article_rank` int(11) NOT NULL,"
         "  `publish_date` varchar(255) NOT NULL,"
         "  `article_category` varchar(255) NOT NULL,"
+        "  `article_id` int(11) NOT NULL,"
         "  `article_title` varchar(255) NOT NULL,"
         "  `article_url` varchar(255) NOT NULL,"
-        "  `creation_date` varchar(255) NOT NULL,"
+        "  `list_gen_date` DATETIME NOT NULL,"
         "  PRIMARY KEY (`article_no`)"
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
 
@@ -266,9 +270,10 @@ def init_database():
         "  `article_rank` int(11) NOT NULL,"
         "  `publish_date` varchar(255) NOT NULL,"
         "  `article_category` varchar(255) NOT NULL,"
+        "  `article_id` int(11) NOT NULL,"
         "  `article_title` varchar(255) NOT NULL,"
         "  `article_url` varchar(255) NOT NULL,"
-        "  `creation_date` varchar(255) NOT NULL,"
+        "  `list_gen_date` DATETIME NOT NULL,"
         "  PRIMARY KEY (`article_no`)"
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
 
@@ -278,16 +283,18 @@ def init_database():
         "  `article_rank` int(11) NOT NULL,"
         "  `publish_date` varchar(255) NOT NULL,"
         "  `article_category` varchar(255) NOT NULL,"
+        "  `article_id` int(11) NOT NULL,"
         "  `article_title` varchar(255) NOT NULL,"
         "  `article_url` varchar(255) NOT NULL,"
-        "  `creation_date` varchar(255) NOT NULL,"
+        "  `list_gen_date` DATETIME NOT NULL,"
         "  PRIMARY KEY (`article_no`)"
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
 
     TABLES['pm_rss'] = (
         "CREATE TABLE IF NOT EXISTS `pm_rss` ("
         "  `article_no` int(11) NOT NULL AUTO_INCREMENT,"
-        "  `article_date` varchar(255) NOT NULL,"
+        "  `article_id` int(11) NOT NULL,"
+        "  `publish_date` DATETIME NOT NULL,"
         "  `article_title` varchar(255) NOT NULL,"
         "  `article_url` varchar(255) NOT NULL,"
         "  PRIMARY KEY (`article_no`)"
@@ -299,9 +306,10 @@ def init_database():
         "  `article_rank` int(11) NOT NULL,"
         "  `publish_date` varchar(255) NOT NULL,"
         "  `article_category` varchar(255) NOT NULL,"
+        "  `article_id` int(11) NOT NULL,"
         "  `article_title` varchar(255) NOT NULL,"
         "  `article_url` varchar(255) NOT NULL,"
-        "  `creation_date` varchar(255) NOT NULL,"
+        "  `list_gen_date` DATETIME NOT NULL,"
         "  PRIMARY KEY (`article_no`)"
         ") ENGINE=InnoDB DEFAULT CHARSET=utf8 DEFAULT COLLATE utf8_unicode_ci")
 
@@ -320,22 +328,24 @@ def init_database():
 
 
 def insert_to_delfi_rss(entry):
-    article_date = entry[0]
+    publish_date = entry[0]
     article_category = entry[1]
     article_title = entry[2]
     article_url = entry[3]
+
+    article_id = article_url.split(sep='=')[1]
 
     cnx = connect_to_sql()
     cursor = cnx.cursor()
 
     add_article = ("INSERT INTO delfi_rss "
-                   "(article_date, article_category, article_title, article_url) "
-                   "VALUES (%s, %s, %s, %s)")
+                   "(article_category, publish_date, article_id, article_title, article_url) "
+                   "VALUES (%s, %s, %s, %s, %s)")
 
-    data_article = (article_date, article_category, article_title, article_url)
+    data_article = (article_category, publish_date, article_id, article_title, article_url)
 
     print("delfi_rss: ")
-    print("add_article: ", add_article)
+    #print("add_article: ", add_article)
     print("data_article: ", data_article)
 
     cursor.execute(add_article, data_article)
@@ -347,22 +357,24 @@ def insert_to_delfi_rss(entry):
 
 
 def insert_to_pm_rss(entry):
-    article_date = entry[0]
+    publish_date = entry[0]
     article_title = entry[1]
     article_url = entry[2]
+
+    article_id = article_url.split(sep="/")[3]
 
     cnx = connect_to_sql()
     cursor = cnx.cursor()
 
     add_article = ("INSERT INTO pm_rss "
-                   "(article_date, article_title, article_url) "
-                   "VALUES (%s, %s, %s)")
+                   "(publish_date, article_id, article_title, article_url) "
+                   "VALUES (%s, %s, %s, %s)")
 
-    data_article = (article_date, article_title, article_url)
+    data_article = (publish_date, article_id, article_title, article_url)
 
-    print("delfi_rss: ")
-    print("add_article: ", add_article)
-    print("data_article: ", data_article)
+    #print("delfi_rss: ")
+    #print("add_article: ", add_article)
+    #print("data_article: ", data_article)
 
     cursor.execute(add_article, data_article)
 
@@ -378,20 +390,23 @@ def insert_to_delfi_editorschoice(entry):
     publish_date = entry[2]
     article_category = entry[3]
     article_title = entry[4]
-    creation_date = entry[5]
+    list_gen_date = entry[5]
+
+    article_id = article_url.split(sep='=')[1]
 
     cnx = connect_to_sql()
     cursor = cnx.cursor()
 
     add_article = ("INSERT INTO delfi_editorschoice "
-                   "(article_rank, publish_date, article_category, article_title, article_url, creation_date) "
-                   "VALUES (%s, %s, %s, %s, %s, %s)")
+                   "(article_rank, publish_date, article_category, article_id, "
+                   "article_title, article_url, list_gen_date) "
+                   "VALUES (%s, %s, %s, %s, %s, %s, %s)")
 
-    data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
+    data_article = (article_rank, publish_date, article_category, article_id, article_title, article_url, list_gen_date)
 
-    print("delfi_editorschoice: ")
-    print("add_article: ", add_article)
-    print("data_article: ", data_article)
+    #print("delfi_editorschoice: ")
+    #print("add_article: ", add_article)
+    #print("data_article: ", data_article)
 
     cursor.execute(add_article, data_article)
     cnx.commit()
@@ -406,20 +421,23 @@ def insert_to_delfi_popular(entry):
     publish_date = entry[2]
     article_category = entry[3]
     article_title = entry[4]
-    creation_date = entry[5]
+    list_gen_date = entry[5]
+
+    article_id = article_url.split(sep='=')[1]
 
     cnx = connect_to_sql()
     cursor = cnx.cursor()
 
     add_article = ("INSERT INTO delfi_popular "
-                   "(article_rank, publish_date, article_category, article_title, article_url, creation_date) "
-                   "VALUES (%s, %s, %s, %s, %s, %s)")
+                   "(article_rank, publish_date, article_category, article_id, "
+                   "article_title, article_url, list_gen_date) "
+                   "VALUES (%s, %s, %s, %s, %s, %s, %s)")
 
-    data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
+    data_article = (article_rank, publish_date, article_category, article_id, article_title, article_url, list_gen_date)
 
-    print("delfi_popular: ")
-    print("add_article: ", add_article)
-    print("data_article: ", data_article)
+    #print("delfi_popular: ")
+    #print("add_article: ", add_article)
+    #print("data_article: ", data_article)
 
     cursor.execute(add_article, data_article)
     cnx.commit()
@@ -434,20 +452,23 @@ def insert_to_delfi_rus_editorschoice(entry):
     publish_date = entry[2]
     article_category = entry[3]
     article_title = entry[4]
-    creation_date = entry[5]
+    list_gen_date = entry[5]
+
+    article_id = article_url.split(sep='=')[1]
 
     cnx = connect_to_sql()
     cursor = cnx.cursor()
 
     add_article = ("INSERT INTO delfi_rus_editorschoice "
-                   "(article_rank, publish_date, article_category, article_title, article_url, creation_date) "
-                   "VALUES (%s, %s, %s, %s, %s, %s)")
+                   "(article_rank, publish_date, article_category, article_id, "
+                   "article_title, article_url, list_gen_date) "
+                   "VALUES (%s, %s, %s, %s, %s, %s, %s)")
 
-    data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
+    data_article = (article_rank, publish_date, article_category, article_id, article_title, article_url, list_gen_date)
 
-    print("delfi_editorschoice: ")
-    print("add_article: ", add_article)
-    print("data_article: ", data_article)
+    #print("delfi_editorschoice: ")
+    #print("add_article: ", add_article)
+    #print("data_article: ", data_article)
 
     cursor.execute(add_article, data_article)
     cnx.commit()
@@ -462,20 +483,23 @@ def insert_to_delfi_rus_popular(entry):
     publish_date = entry[2]
     article_category = entry[3]
     article_title = entry[4]
-    creation_date = entry[5]
+    list_gen_date = entry[5]
+
+    article_id = article_url.split(sep='=')[1]
 
     cnx = connect_to_sql()
     cursor = cnx.cursor()
 
     add_article = ("INSERT INTO delfi_rus_popular "
-                   "(article_rank, publish_date, article_category, article_title, article_url, creation_date) "
-                   "VALUES (%s, %s, %s, %s, %s, %s)")
+                   "(article_rank, publish_date, article_category, article_id, "
+                   "article_title, article_url, list_gen_date) "
+                   "VALUES (%s, %s, %s, %s, %s, %s, %s)")
 
-    data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
+    data_article = (article_rank, publish_date, article_category, article_id, article_title, article_url, list_gen_date)
 
-    print("delfi_popular: ")
-    print("add_article: ", add_article)
-    print("data_article: ", data_article)
+    #print("delfi_popular: ")
+    #print("add_article: ", add_article)
+    #print("data_article: ", data_article)
 
     cursor.execute(add_article, data_article)
     cnx.commit()
@@ -490,20 +514,23 @@ def insert_to_pm_editorschoice(entry):
     publish_date = entry[2]
     article_category = entry[3]
     article_title = entry[4]
-    creation_date = entry[5]
+    list_gen_date = entry[5]
+
+    article_id = article_url.split(sep="/")[3]
 
     cnx = connect_to_sql()
     cursor = cnx.cursor()
 
     add_article = ("INSERT INTO pm_editorschoice "
-                   "(article_rank, publish_date, article_category, article_title, article_url, creation_date) "
-                   "VALUES (%s, %s, %s, %s, %s, %s)")
+                   "(article_rank, publish_date, article_category, article_id, "
+                   "article_title, article_url, list_gen_date) "
+                   "VALUES (%s, %s, %s, %s, %s, %s, %s)")
 
-    data_article = (article_rank, publish_date, article_category, article_title, article_url, creation_date)
+    data_article = (article_rank, publish_date, article_category, article_id, article_title, article_url, list_gen_date)
 
-    print("pm_editorschoice: ")
-    print("add_article: ", add_article)
-    print("data_article: ", data_article)
+    #print("pm_editorschoice: ")
+    #print("add_article: ", add_article)
+    #print("data_article: ", data_article)
 
     cursor.execute(add_article, data_article)
     cnx.commit()
@@ -563,7 +590,7 @@ def topnews():
     pm_data = requests.get(pm_editorschoice_url).text
     pm_data = json.loads(pm_data)
 
-    current_time = str(dt.now())
+    current_time = dt.now(pytz.timezone('Europe/Tallinn'))
 
     for x, i in enumerate(pm_data):
         article_rank = x + 1
@@ -571,9 +598,9 @@ def topnews():
         article_title = i['editorsChoice']['headline']
         article_url = 'http://www.postimees.ee/' + str(i['id'])
         article_category = i['sectionBreadcrumb'][0]['domain']
-        creation_date = current_time
+        list_gen_date = current_time
 
-        entry = [article_rank, article_url, publish_date, article_category, article_title, creation_date]
+        entry = [article_rank, article_url, publish_date, article_category, article_title, list_gen_date]
         insert_to_pm_editorschoice(entry=entry)
 
     threading.Timer(topnews_timer, topnews).start()
@@ -645,7 +672,7 @@ def match_articles(article_url):
 
 # populates the topnews & popular tables
 def create_top_list(array, table):
-    current_time = str(dt.now())
+    current_time = dt.now(pytz.timezone('Europe/Tallinn'))
     for i, item in enumerate(array):
         from_db_item = match_articles(item)
         if from_db_item == "N/A":
